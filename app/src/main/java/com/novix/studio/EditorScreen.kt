@@ -121,12 +121,12 @@ fun EditorScreen(vm: EditorViewModel, isPro: Boolean, onGoPro: () -> Unit) {
                     // already drawn into the rendered bitmap.
                     if (tool == "Stickers" && !vm.showOriginal) {
                         for ((i, st) in vm.stickers.withIndex()) {
-                            val handleSize = st.size * maxWidth
+                            val handleSize = maxWidth * st.size
                             val wPx = with(density) { maxWidth.toPx() }
                             val hPx = with(density) { maxHeight.toPx() }
                             Box(
                                 modifier = Modifier
-                                    .offset(x = st.x * maxWidth, y = st.y * maxHeight)
+                                    .offset(x = maxWidth * st.x, y = maxHeight * st.y)
                                     .size(handleSize)
                                     .border(1.dp, NovixGreen, RoundedCornerShape(8.dp))
                                     .pointerInput(i) {
