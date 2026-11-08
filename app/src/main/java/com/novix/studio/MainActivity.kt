@@ -42,9 +42,22 @@ class MainActivity : ComponentActivity() {
                             .fillMaxWidth()
                     ) {
                         when (tab) {
-                            "Home" -> HomeScreen(vm, onGoEditor = { tab = "Editor" }, onGoPro = { tab = "Pro" })
+                            "Home" -> HomeScreen(
+                                vm,
+                                onGoEditor = { tab = "Editor" },
+                                onGoPro = { tab = "Pro" },
+                                onGoCollage = { tab = "Collage" },
+                                onGoAI = { tab = "AI" }
+                            )
                             "Editor" -> EditorScreen(vm, isPro, onGoPro = { tab = "Pro" })
-                            "AI" -> AiScreen(vm, isPro, onGoPro = { tab = "Pro" }, onGoEditor = { tab = "Editor" })
+                            "Collage" -> CollageScreen(vm, isPro)
+                            "AI" -> AiScreen(
+                                vm,
+                                isPro,
+                                onGoPro = { tab = "Pro" },
+                                onGoEditor = { tab = "Editor" },
+                                onGoCollage = { tab = "Collage" }
+                            )
                             "Pro" -> ProScreen(onProChanged = { isPro = ProManager.isPro(this@MainActivity) })
                         }
                     }
