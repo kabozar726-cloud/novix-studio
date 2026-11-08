@@ -11,6 +11,7 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -43,13 +44,10 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -98,7 +96,6 @@ fun EditorScreen(vm: EditorViewModel, isPro: Boolean, onGoPro: () -> Unit) {
 
         // Preview with before/after compare + draggable sticker handles
         val bmp = if (vm.showOriginal) vm.originalBitmap else vm.preview
-        var previewSize by remember { mutableStateOf(IntSize.Zero) }
         val density = LocalDensity.current
         Box(
             modifier = Modifier
@@ -108,11 +105,10 @@ fun EditorScreen(vm: EditorViewModel, isPro: Boolean, onGoPro: () -> Unit) {
             contentAlignment = Alignment.Center
         ) {
             if (bmp != null) {
-                Box(
+                BoxWithConstraints(
                     modifier = Modifier
                         .fillMaxWidth(0.96f)
                         .aspectRatio(bmp.width.toFloat() / bmp.height.toFloat())
-                        .onSizeChanged { previewSize = it }
                 ) {
                     Image(
                         bitmap = bmp.asImageBitmap(),
@@ -125,29 +121,24 @@ fun EditorScreen(vm: EditorViewModel, isPro: Boolean, onGoPro: () -> Unit) {
                     // already drawn into the rendered bitmap.
                     if (tool == "Stickers" && !vm.showOriginal) {
                         for ((i, st) in vm.stickers.withIndex()) {
-                            val handleSize = with(density) {
-                                (st.size * previewSize.width).toDp()
-                            }
+                            val handleSize = st.size * maxWidth
+                            val wPx = with(density) { maxWidth.toPx() }
+                            val hPx = with(density) { maxHeight.toPx() }
                             Box(
                                 modifier = Modifier
-                                    .offset {
-                                        IntOffset(
-                                            (st.x * previewSize.width).toInt(),
-                                            (st.y * previewSize.height).toInt()
-                                        )
-                                    }
+                                    .offset(x = st.x * maxWidth, y = st.y * maxHeight)
                                     .size(handleSize)
                                     .border(1.dp, NovixGreen, RoundedCornerShape(8.dp))
-                                    .pointerInput(previewSize, i) {
+                                    .pointerInput(i) {
                                         detectDragGestures(
                                             onDragEnd = { vm.refreshPreview() }
                                         ) { change, dragAmount ->
                                             change.consume()
-                                            if (previewSize.width > 0 && previewSize.height > 0) {
+                                            if (wPx > 0 && hPx > 0) {
                                                 vm.moveSticker(
                                                     i,
-                                                    dragAmount.x / previewSize.width,
-                                                    dragAmount.y / previewSize.height
+                                                    dragAmount.x / wPx,
+                                                    dragAmount.y / hPx
                                                 )
                                             }
                                         }
