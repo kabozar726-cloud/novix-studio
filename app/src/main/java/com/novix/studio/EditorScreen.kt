@@ -43,7 +43,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.onGloballyPositioned
+import androidx.compose.ui.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -112,7 +112,7 @@ fun EditorScreen(vm: EditorViewModel, isPro: Boolean, onGoPro: () -> Unit) {
                     modifier = Modifier
                         .fillMaxWidth(0.96f)
                         .aspectRatio(bmp.width.toFloat() / bmp.height.toFloat())
-                        .onGloballyPositioned { previewSize = it.size }
+                        .onSizeChanged { previewSize = it }
                 ) {
                     Image(
                         bitmap = bmp.asImageBitmap(),
