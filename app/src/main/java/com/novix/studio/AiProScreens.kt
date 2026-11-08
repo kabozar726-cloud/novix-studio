@@ -1,10 +1,5 @@
 package com.novix.studio
 
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
-import android.content.Intent
-import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -12,7 +7,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,7 +17,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -31,8 +24,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -48,22 +39,31 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-fun AiScreen(vm: EditorViewModel, isPro: Boolean, onGoPro: () -> Unit, onGoEditor: () -> Unit) {
+fun AiScreen(
+    vm: EditorViewModel,
+    isPro: Boolean,
+    onGoPro: () -> Unit,
+    onGoEditor: () -> Unit,
+    onGoCollage: () -> Unit
+) {
     val context = LocalContext.current
+    val bgPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) vm.pickBgPhoto(context, uri)
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(20.dp)
     ) {
-        Text("AI Tools", color = NovixText, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-        Text("AI se photo ko behtar banayein", color = NovixMuted, fontSize = 14.sp)
+        Text("AI Tools ✨", color = NovixText, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        Text("AI se photo ko behtar banayein — sab on-device", color = NovixMuted, fontSize = 14.sp)
         Spacer(modifier = Modifier.height(16.dp))
+
         AiCard(
             title = "AI Enhance",
             desc = "Aik tap mein photo behtar — roshni, rang aur contrast khud theek ho jate hain.",
@@ -77,39 +77,178 @@ fun AiScreen(vm: EditorViewModel, isPro: Boolean, onGoPro: () -> Unit, onGoEdito
                 Toast.makeText(context, "AI Enhance lag gaya", Toast.LENGTH_SHORT).show()
             }
         }
-        AiCard(
-            title = "Background Remover",
-            desc = "Photo ka background hatayein. PRO + AI connection jald aa raha hai.",
-            buttonText = "PRO lein",
-            enabled = true
-        ) { onGoPro() }
-        AiCard(
-            title = "AI Retouch",
-            desc = "Chehre ki khamiyan aur dagh AI se theek karein. PRO + AI connection jald aa raha hai.",
-            buttonText = "PRO lein",
-            enabled = true
-        ) { onGoPro() }
+
+        // Background Remover — REAL, ML Kit on-device
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(NovixCard)
+                .padding(16.dp)
+        ) {
+            Column {
+                Text("Background Remover ✂️", color = NovixText, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text(
+                    "Insaan ko photo se alag karein — asli AI, phone par hi chalta hai. Pehli dafa model download ke liye internet chahiye.",
+                    color = NovixMuted,
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 10.dp)
+                )
+                if (vm.hasPhoto && vm.preview != null) {
+                    Image(
+                        bitmap = vm.preview!!.asImageBitmap(),
+                        contentDescription = "BG remover preview",
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(180.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(0xFF111111))
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                }
+                if (!vm.bgRemoved) {
+                    Button(
+                        onClick = {
+                            if (!vm.hasPhoto) {
+                                Toast.makeText(context, "Pehle Editor mein photo import karein", Toast.LENGTH_SHORT).show()
+                            } else {
+                                vm.startBgRemoval(context)
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = NovixGreen, contentColor = Color.Black)
+                    ) { Text("Background hatayein", fontWeight = FontWeight.Bold) }
+                } else {
+                    Text("Background hat gaya! Neeche mode chunein:", color = NovixGreen, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        for (mode in listOf("Transparent", "Blur", "Colour", "Photo")) {
+                            val selected = vm.bgMode == mode
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(if (selected) NovixGreen else Color(0xFF2A2A2A))
+                                    .clickable {
+                                        if (mode == "Photo") {
+                                            bgPicker.launch("image/*")
+                                        } else {
+                                            vm.setBgMode(mode)
+                                        }
+                                    }
+                                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                            ) {
+                                Text(
+                                    mode,
+                                    color = if (selected) Color.Black else NovixText,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+                                )
+                            }
+                        }
+                    }
+                    if (vm.bgMode == "Colour") {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            for ((label, color) in listOf(
+                                "White" to Color.White,
+                                "Black" to Color.Black,
+                                "Lime" to NovixGreen,
+                                "Pink" to Color(0xFFFF4D8D),
+                                "Blue" to Color(0xFF2196F3)
+                            )) {
+                                val selected = vm.bgColor == color.toArgb()
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(RoundedCornerShape(18.dp))
+                                        .background(color)
+                                        .border(
+                                            if (selected) 3.dp else 1.dp,
+                                            if (selected) NovixGreen else Color(0xFF555555),
+                                            RoundedCornerShape(18.dp)
+                                        )
+                                        .clickable { vm.setBgMode("Colour", color.toArgb()) }
+                                ) { }
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Button(
+                        onClick = { vm.savePhoto(context, isPro) },
+                        colors = ButtonDefaults.buttonColors(containerColor = NovixGreen, contentColor = Color.Black),
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text(if (vm.bgMode == "Transparent") "Save PNG (Transparent)" else "Save karein", fontWeight = FontWeight.Bold) }
+                }
+                Text(vm.status, color = NovixMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+            }
+        }
+
+        // AI Retouch — local sliders
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(NovixCard)
+                .padding(16.dp)
+        ) {
+            Column {
+                Text("AI Retouch 💄", color = NovixText, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text(
+                    "Skin smooth, roshni aur detail — sab phone par, bina internet.",
+                    color = NovixMuted,
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 10.dp)
+                )
+                if (!vm.hasPhoto) {
+                    Button(
+                        onClick = {
+                            Toast.makeText(context, "Pehle Editor mein photo import karein", Toast.LENGTH_SHORT).show()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = NovixGreen, contentColor = Color.Black)
+                    ) { Text("Photo import karein", fontWeight = FontWeight.Bold) }
+                } else {
+                    EditSlider("Smooth", vm.retouchSmooth, 0, 100) {
+                        vm.updateRetouch(smooth = it)
+                    }
+                    EditSlider("Brighten", vm.retouchBrighten, 0, 100) {
+                        vm.updateRetouch(brighten = it)
+                    }
+                    EditSlider("Detail", vm.retouchDetail, 0, 100) {
+                        vm.updateRetouch(detail = it)
+                    }
+                }
+            }
+        }
+
         AiCard(
             title = "AI Avatar",
             desc = "Apni photo se AI avatar banayein. PRO + AI connection jald aa raha hai.",
             buttonText = "PRO lein",
             enabled = true
         ) { onGoPro() }
+
         AiCard(
             title = "Collage Maker",
-            desc = "Kai photos aik frame mein. Jald aa raha hai.",
-            buttonText = "Jald aa raha hai",
-            enabled = false
-        ) { }
+            desc = "Kai photos aik frame mein — 2, 3 ya 4 photo layouts.",
+            buttonText = "Collage banayein",
+            enabled = true
+        ) { onGoCollage() }
+
         AiCard(
             title = "Text & Stickers",
             desc = "Photo par text aur stickers lagayein — Editor mein tayyar hai.",
             buttonText = "Editor mein jayein",
             enabled = true
         ) { onGoEditor() }
+
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            "Note: AI tools (Background, Retouch, Avatar) ke liye AI connection chahiye — ye agle version mein aaye ga.",
+            "Note: AI Avatar ke liye AI connection chahiye — agle version mein aaye ga. Baaki sab tools on-device kaam karte hain.",
             color = NovixMuted,
             fontSize = 13.sp
         )
@@ -258,7 +397,7 @@ fun ProScreen(onProChanged: () -> Unit) {
         SectionTitle("Madad chahiye?")
         Text("WhatsApp: $WHATSAPP_1", color = NovixText, fontSize = 14.sp)
         Text("WhatsApp: $WHATSAPP_2", color = NovixText, fontSize = 14.sp)
-        Text("Novix Studio v1.0.0", color = NovixMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
+        Text("Novix Studio v2.0.0", color = NovixMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
         Spacer(modifier = Modifier.height(16.dp))
     }
 }
